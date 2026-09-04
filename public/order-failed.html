@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Failed — AquaForge</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600;700&family=Space+Mono:wght@700&display=swap');
+  :root{--bg:#080C16;--panel:#121B30;--panel-border:#212F4A;--teal:#2BD9CB;--amber:#F2A93B;--text:#F4F6FA;--muted:#90A0BD;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+  .icon{width:80px;height:80px;border-radius:50%;background:rgba(220,53,69,0.12);border:2px solid #dc3545;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;}
+  .icon svg{width:36px;height:36px;stroke:#dc3545;}
+  h1{font-family:'Archivo Black',sans-serif;font-size:clamp(28px,5vw,42px);margin-bottom:14px;}
+  p{color:var(--muted);font-size:16px;max-width:440px;line-height:1.6;margin-bottom:10px;}
+  .tips{background:#121B30;border:1px solid #212F4A;border-radius:14px;padding:20px 24px;margin:24px 0;text-align:left;max-width:400px;}
+  .tips li{color:var(--muted);font-size:14px;padding:6px 0;border-top:1px solid #212F4A;list-style:none;padding-left:16px;position:relative;}
+  .tips li::before{content:"·";position:absolute;left:0;color:var(--amber);}
+  .tips li:first-child{border-top:none;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:999px;font-weight:700;font-size:15px;border:none;cursor:pointer;text-decoration:none;background:var(--amber);color:#1A1304;transition:background .2s;}
+  .btn:hover{background:#ffbd55;}
+  .logo{font-family:'Archivo Black',sans-serif;font-size:20px;margin-bottom:48px;letter-spacing:1px;}
+</style>
+</head>
+<body>
+  <div class="logo">AquaForge</div>
+  <div class="icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  </div>
+  <h1>Payment Failed</h1>
+  <p>Something went wrong with the payment. No charge was made.</p>
+  <ul class="tips">
+    <li>Check your card number, expiry date and CVV</li>
+    <li>Make sure you have sufficient funds available</li>
+    <li>Try a different card if the problem continues</li>
+    <li>Contact your bank if your card keeps declining</li>
+  </ul>
+  <a class="btn" href="https://www.aquaforge3d.co.za">Try again</a>
+</body>
+</html>

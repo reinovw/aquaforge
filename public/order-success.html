@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Confirmed — AquaForge</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600;700&family=Space+Mono:wght@700&display=swap');
+  :root{--bg:#080C16;--panel:#121B30;--panel-border:#212F4A;--teal:#2BD9CB;--amber:#F2A93B;--text:#F4F6FA;--muted:#90A0BD;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+  .icon{width:80px;height:80px;border-radius:50%;background:rgba(43,217,203,0.15);border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;margin:0 auto 28px;}
+  .icon svg{width:36px;height:36px;stroke:var(--teal);}
+  h1{font-family:'Archivo Black',sans-serif;font-size:clamp(28px,5vw,42px);margin-bottom:14px;}
+  p{color:var(--muted);font-size:16px;max-width:440px;line-height:1.6;margin-bottom:10px;}
+  .badge{display:inline-block;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--teal);border:1px solid rgba(43,217,203,0.3);padding:6px 14px;border-radius:999px;margin:20px 0 30px;}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:999px;font-weight:700;font-size:15px;border:none;cursor:pointer;text-decoration:none;background:var(--amber);color:#1A1304;transition:background .2s;}
+  .btn:hover{background:#ffbd55;}
+  .logo{font-family:'Archivo Black',sans-serif;font-size:20px;margin-bottom:48px;letter-spacing:1px;}
+</style>
+</head>
+<body>
+  <div class="logo">AquaForge</div>
+  <div class="icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <h1>Order Confirmed!</h1>
+  <p>Payment received — your AquaForge prop is being prepared for delivery.</p>
+  <p>You'll receive an email confirmation shortly. Delivery is across South Africa.</p>
+  <div class="badge">✓ PAID · AQUAFORGE</div>
+  <a class="btn" href="https://www.aquaforge3d.co.za">Back to shop</a>
+</body>
+</html>
