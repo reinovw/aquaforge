@@ -353,8 +353,40 @@
   }
   .checkout-form input:focus, .checkout-form select:focus{border-color:var(--teal); outline:none;}
   .form-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .cart-shipping-row, .cart-total-row{display:flex; justify-content:space-between; align-items:baseline; font-size:14px; padding-top:8px;}
+  .cart-total-row{border-top:1px solid var(--panel-border); margin-top:8px; padding-top:12px; font-size:15px;}
+  .cart-total-row strong{font-family:'Space Mono',monospace; font-size:22px; color:var(--teal);}
+  .cart-shipping-row strong{font-family:'Space Mono',monospace; font-size:15px; color:var(--muted);}
+
+  /* shipping option cards */
+  .shipping-options{display:flex; flex-direction:column; gap:8px;}
+  .shipping-options__label{font-size:13px; color:var(--muted); font-weight:600; margin-bottom:2px;}
+  .shipping-option{
+    display:flex; align-items:center; gap:12px;
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:10px;
+    padding:12px 14px; cursor:pointer;
+    transition:border-color .15s ease;
+  }
+  .shipping-option:has(input:checked){border-color:var(--teal); background:rgba(43,217,203,0.05);}
+  .shipping-option input[type="radio"]{accent-color:var(--teal); width:16px; height:16px; flex-shrink:0;}
+  .shipping-option__body{flex-grow:1;}
+  .shipping-option__title{font-weight:700; font-size:14px; display:flex; justify-content:space-between; align-items:center;}
+  .shipping-option__price{font-family:'Space Mono',monospace; font-size:13px; color:var(--muted);}
+  .shipping-option__price.free{color:var(--teal);}
+  .shipping-option__sub{font-size:12px; color:var(--muted); margin-top:3px;}
+
+  /* pickup notice box */
+  .pickup-box{
+    display:flex; gap:14px; align-items:flex-start;
+    background:rgba(43,217,203,0.07); border:1px solid rgba(43,217,203,0.25);
+    border-radius:10px; padding:14px;
+  }
+  .pickup-box__icon{font-size:22px; flex-shrink:0;}
+  .pickup-box strong{display:block; font-size:14px; margin-bottom:4px;}
+  .pickup-box p{font-size:12.5px; color:var(--muted); margin-top:4px; line-height:1.5;}
   .checkout-note{font-size:12.5px; color:var(--muted); text-align:center; margin-top:4px;}
   .checkout-note.is-error{color:var(--amber);}
+
 
   /* ---------- auth modal ---------- */
   .modal{
@@ -742,6 +774,8 @@
     <p class="cart-empty" id="cart-empty">Your cart is empty. Add a prop to get started.</p>
     <div class="panel__foot" id="cart-foot" hidden>
       <div class="cart-subtotal"><span>Subtotal</span><strong id="cart-subtotal">R0</strong></div>
+      <div class="cart-shipping-row"><span>Shipping</span><strong id="cart-shipping-display">—</strong></div>
+      <div class="cart-total-row"><span>Total</span><strong id="cart-total-display">R0</strong></div>
       <button class="btn btn--primary btn--block" id="go-checkout" type="button">Checkout →</button>
     </div>
   </div>
@@ -757,25 +791,63 @@
       <label>Full name<input required name="fullName" autocomplete="name"></label>
       <label>Email<input required type="email" name="email" autocomplete="email"></label>
       <label>Phone<input required type="tel" name="phone" autocomplete="tel"></label>
-      <label>Delivery address<input required name="address" autocomplete="street-address"></label>
-      <div class="form-row">
-        <label>City<input required name="city" autocomplete="address-level2"></label>
-        <label>Postal code<input required name="postal" autocomplete="postal-code"></label>
+
+      <!-- Shipping method -->
+      <div class="shipping-options">
+        <div class="shipping-options__label">Delivery method</div>
+        <label class="shipping-option" id="opt-shipping">
+          <input type="radio" name="shippingMethod" value="shipping" checked>
+          <div class="shipping-option__body">
+            <div class="shipping-option__title">🚚 Courier delivery <span class="shipping-option__price">R150</span></div>
+            <div class="shipping-option__sub">Flat rate · Any province in South Africa</div>
+          </div>
+        </label>
+        <label class="shipping-option" id="opt-pickup">
+          <input type="radio" name="shippingMethod" value="pickup">
+          <div class="shipping-option__body">
+            <div class="shipping-option__title">📍 Collect in person <span class="shipping-option__price free">FREE</span></div>
+            <div class="shipping-option__sub">LC de Villiers Pool, Pretoria</div>
+          </div>
+        </label>
       </div>
-      <label>Province
-        <select required name="province">
-          <option value="">Select province</option>
-          <option>Gauteng</option>
-          <option>Western Cape</option>
-          <option>Eastern Cape</option>
-          <option>KwaZulu-Natal</option>
-          <option>Free State</option>
-          <option>Limpopo</option>
-          <option>Mpumalanga</option>
-          <option>North West</option>
-          <option>Northern Cape</option>
-        </select>
-      </label>
+
+      <!-- Address fields — hidden when pickup selected -->
+      <div id="address-fields">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <label>Delivery address<input name="address" autocomplete="street-address"></label>
+          <div class="form-row">
+            <label>City<input name="city" autocomplete="address-level2"></label>
+            <label>Postal code<input name="postal" autocomplete="postal-code"></label>
+          </div>
+          <label>Province
+            <select name="province">
+              <option value="">Select province</option>
+              <option>Gauteng</option>
+              <option>Western Cape</option>
+              <option>Eastern Cape</option>
+              <option>KwaZulu-Natal</option>
+              <option>Free State</option>
+              <option>Limpopo</option>
+              <option>Mpumalanga</option>
+              <option>North West</option>
+              <option>Northern Cape</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- Pickup notice — shown when pickup selected -->
+      <div id="pickup-notice" hidden>
+        <div class="pickup-box">
+          <div class="pickup-box__icon">📍</div>
+          <div>
+            <strong>LC de Villiers Pool</strong>
+            <p>University of Pretoria · Roper Street, Hatfield, Pretoria</p>
+            <p>We'll contact you on the number above to arrange a collection time.</p>
+          </div>
+        </div>
+      </div>
+
       <button class="btn btn--primary btn--block" id="pay-btn" type="submit">Pay <span id="pay-amount"></span> with Yoco</button>
       <p class="checkout-note" id="checkout-note"></p>
     </form>
@@ -888,8 +960,24 @@
   const cartSubtotalEl= document.getElementById('cart-subtotal');
   const cartBadgeEl   = document.getElementById('cart-badge');
 
+  const SHIPPING_COST = 150;
+
+  function getShippingMethod(){
+    const form = document.getElementById('checkout-form');
+    const radio = form ? form.querySelector('input[name="shippingMethod"]:checked') : null;
+    return radio ? radio.value : 'shipping';
+  }
+
+  function shippingCost(){
+    return getShippingMethod() === 'pickup' ? 0 : SHIPPING_COST;
+  }
+
   function subtotal(){
     return Object.values(cart).reduce((sum, e) => sum + PRODUCTS[e.productId].price * e.qty, 0);
+  }
+
+  function grandTotal(){
+    return subtotal() + shippingCost();
   }
 
   function renderCart(){
@@ -932,6 +1020,10 @@
       });
     }
     cartSubtotalEl.textContent = fmt(subtotal());
+    const shippingDisplay = document.getElementById('cart-shipping-display');
+    const totalDisplay    = document.getElementById('cart-total-display');
+    if (shippingDisplay) shippingDisplay.textContent = totalQty === 0 ? '—' : (shippingCost() === 0 ? 'FREE (Pickup)' : fmt(SHIPPING_COST));
+    if (totalDisplay)    totalDisplay.textContent    = fmt(totalQty === 0 ? 0 : grandTotal());
   }
 
   // ---------- cart panel open/close ----------
@@ -977,15 +1069,39 @@
       '<span class="colour-dot colour-dot--' + e.colour + '"></span>' +
       PRODUCTS[e.productId].name + ' (' + COLOUR_LABELS[e.colour] + ') × ' + e.qty
     ).join('<br>');
+    const method = getShippingMethod();
+    const shippingLine = method === 'pickup'
+      ? '<br>📍 Pickup at LC de Villiers Pool — <strong style="color:var(--teal)">FREE</strong>'
+      : '<br>🚚 Courier delivery — <strong>' + fmt(SHIPPING_COST) + '</strong>';
     document.getElementById('checkout-summary').innerHTML =
-      (lines || 'No items') + '<br><br><strong>Total: ' + fmt(subtotal()) + '</strong>';
-    document.getElementById('pay-amount').textContent = fmt(subtotal());
+      (lines || 'No items') + shippingLine + '<br><br><strong>Total: ' + fmt(grandTotal()) + '</strong>';
+    document.getElementById('pay-amount').textContent = fmt(grandTotal());
     if (session){
       const form = document.getElementById('checkout-form');
       form.elements.email.value    = session.email || '';
       form.elements.fullName.value = session.name  || '';
     }
   }
+
+  // ---------- shipping method toggle ----------
+  document.querySelectorAll('input[name="shippingMethod"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const isPickup = radio.value === 'pickup';
+      const addressFields  = document.getElementById('address-fields');
+      const pickupNotice   = document.getElementById('pickup-notice');
+      const addrInputs     = addressFields.querySelectorAll('input, select');
+
+      addressFields.hidden = isPickup;
+      pickupNotice.hidden  = !isPickup;
+
+      // make address fields required only for courier
+      addrInputs.forEach(el => { el.required = !isPickup; });
+
+      // update pay button + summary totals live
+      document.getElementById('pay-amount').textContent = fmt(grandTotal());
+      renderCart();
+    });
+  });
 
   // ---------- checkout / Yoco handoff ----------
   const checkoutForm = document.getElementById('checkout-form');
@@ -998,11 +1114,12 @@
     checkoutNote.textContent = '';
 
     const customer = Object.fromEntries(new FormData(checkoutForm).entries());
+    const method   = getShippingMethod();
     const items = Object.values(cart).filter(e => e.qty > 0).map(e => ({
       id: e.productId, name: PRODUCTS[e.productId].name, colour: e.colour,
       qty: e.qty, price: PRODUCTS[e.productId].price
     }));
-    const amountCents = subtotal() * 100;
+    const amountCents = grandTotal() * 100;
 
     payBtn.disabled = true;
     payBtn.textContent = 'Connecting to Yoco…';
@@ -1021,7 +1138,7 @@
       checkoutNote.textContent =
         'Payments aren\u2019t wired up yet — ' + YOCO_CHECKOUT_ENDPOINT + ' needs a backend. See server-example.js.';
       payBtn.disabled = false;
-      payBtn.textContent = 'Pay ' + fmt(subtotal()) + ' with Yoco';
+      payBtn.textContent = 'Pay ' + fmt(grandTotal()) + ' with Yoco';
     }
   });
 
