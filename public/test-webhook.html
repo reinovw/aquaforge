@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AquaForge Webhook Tester</title>
+<style>
+  body { font-family: monospace; background: #080C16; color: #F4F6FA; padding: 30px; max-width: 800px; margin: 0 auto; }
+  h2 { color: #2BD9CB; }
+  button { background: #F2A93B; color: #1A1304; border: none; padding: 14px 28px; font-weight: 900; font-size: 15px; border-radius: 8px; cursor: pointer; margin: 10px 0; }
+  button:hover { background: #ffbd55; }
+  #log { background: #0D1422; border: 1px solid #212F4A; border-radius: 8px; padding: 20px; margin-top: 20px; white-space: pre-wrap; word-break: break-all; min-height: 200px; font-size: 13px; line-height: 1.7; }
+  .ok  { color: #2BD9CB; }
+  .err { color: #e53935; }
+  .warn{ color: #F2A93B; }
+  input { background: #0D1422; border: 1px solid #212F4A; color: #F4F6FA; padding: 10px; border-radius: 6px; width: 100%; margin: 6px 0 14px; font-family: monospace; font-size: 13px; box-sizing: border-box; }
+  label { color: #90A0BD; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h2>🔧 AquaForge Webhook Tester</h2>
+<p style="color:#90A0BD;">This sends a fake <code>payment.succeeded</code> event directly to your webhook so you can see the exact error in the browser console and on screen — no real payment needed.</p>
+
+<label>Webhook URL</label>
+<input id="url" value="https://www.aquaforge3d.co.za/api/webhooks/yoco">
+
+<label>Customer Name (test)</label>
+<input id="name" value="Test Customer">
+
+<label>Customer Email (test)</label>
+<input id="email" value="test@aquaforge3d.co.za">
+
+<button onclick="runTest()">▶ Send Test Webhook</button>
+<button onclick="document.getElementById('log').textContent = ''" style="background:#212F4A; color:#F4F6FA;">Clear</button>
+
+<div id="log">Logs will appear here...</div>
+
+<script>
+function log(msg, type) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = type || '';
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function runTest() {
+  const url   = document.getElementById('url').value.trim();
+  const name  = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+
+  document.getElementById('log').innerHTML = '';
+  log('🚀 Sending test webhook to: ' + url);
+  log('─────────────────────────────────────');
+
+  const payload = {
+    type: 'payment.succeeded',
+    id:   'test_' + Date.now(),
+    amount: 72500, // R725 in cents (R550 prop + R150 shipping + R25 keychain)
+    currency: 'ZAR',
+    metadata: {
+      customerName:    name,
+      customerEmail:   email,
+      customerPhone:   '0821234567',
+      shippingMethod:  'Courier – R150',
+      deliveryAddress: '1 Test Street, Pretoria, Gauteng, 0001',
+      items:           'Standard Prop (Green) × 1, Propeller Bag Keychain (Blue) × 1',
+    }
+  };
+
+  log('📤 Payload: ' + JSON.stringify(payload, null, 2));
+  log('─────────────────────────────────────');
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await res.text();
+    log('📥 Response status: ' + res.status + ' ' + res.statusText, res.ok ? 'ok' : 'err');
+    log('📥 Response body: ' + text, res.ok ? 'ok' : 'err');
+
+    if (res.ok) {
+      log('─────────────────────────────────────');
+      log('✅ Webhook responded with 200 OK', 'ok');
+      log('👉 Now check your Google Sheet — a test row should have appeared.', 'ok');
+      log('👉 Also check Cloudflare logs for the detailed step-by-step output.', 'warn');
+    } else {
+      log('─────────────────────────────────────');
+      log('❌ Webhook returned an error status: ' + res.status, 'err');
+    }
+
+  } catch (err) {
+    log('─────────────────────────────────────');
+    log('❌ Request failed: ' + err.message, 'err');
+    if (err.message.includes('CORS') || err.message.includes('fetch')) {
+      log('⚠ CORS error — this is expected if testing from a different domain.', 'warn');
+      log('  Try opening this file directly from aquaforge3d.co.za, or check', 'warn');
+      log('  Cloudflare logs directly — the webhook may have still fired.', 'warn');
+    }
+  }
+}
+</script>
+</body>
+</html>
