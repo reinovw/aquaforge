@@ -141,6 +141,16 @@ async function logOrderToSheet(env, order) {
   console.log('✅ Order logged to Google Sheet successfully:', order.id);
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -182,11 +192,11 @@ export async function onRequestPost(context) {
       console.log('ℹ️ Event type not handled:', event?.type);
     }
 
-    return new Response('OK', { status: 200 });
+    return new Response('OK', { status: 200, headers: CORS_HEADERS });
 
   } catch (err) {
     console.error('❌ Webhook handler error:', err.message);
     console.error('❌ Stack:', err.stack);
-    return new Response('OK', { status: 200 });
+    return new Response('OK', { status: 200, headers: CORS_HEADERS });
   }
 }
