@@ -112,7 +112,7 @@ async function logOrderToSheet(env, order) {
     order.items          || '',
     order.shippingMethod || '',
     order.deliveryAddress|| '',
-    `R${(order.amount / 100).toFixed(2)}`,
+    order.amount,
     'PAID',
     order.id,
     '',
@@ -174,15 +174,27 @@ export async function onRequestPost(context) {
     if (event?.type === 'payment.succeeded') {
       const meta = event.metadata || {};
 
+      // Deduplicate — Yoco sometimes sends the same event twice
+      // We track the last processed ID in a global variable for this worker instance
+      if (global._lastProcessedId === event.id) {
+        console.log('⚠️ Duplicate event detected, skipping:', event.id);
+        return new Response('OK', { status: 200, headers: CORS_HEADERS });
+      }
+      global._lastProcessedId = event.id;
+
+      // Yoco sends amount in cents — convert to Rand
+      // Use our stored orderTotal from metadata as the source of truth if available
+      const amountRand = meta.orderTotal || `R${((event.amount || 0) / 100).toFixed(2)}`;
+
       const order = {
-        id:              event.id,
-        amount:          event.amount,
-        customerName:    meta.customerName   || '',
-        customerEmail:   meta.customerEmail  || '',
-        customerPhone:   meta.customerPhone  || '',
-        shippingMethod:  meta.shippingMethod || 'Courier',
-        deliveryAddress: meta.deliveryAddress|| 'N/A',
-        items:           meta.items          || '',
+        id:              event.id                || '',
+        amount:          amountRand,
+        customerName:    meta.customerName       || '',
+        customerEmail:   meta.customerEmail      || '',
+        customerPhone:   meta.customerPhone      || '',
+        shippingMethod:  meta.shippingMethod     || '',
+        deliveryAddress: meta.deliveryAddress    || '',
+        items:           meta.orderItems         || '',
       };
 
       console.log('✅ Payment succeeded — logging order:', JSON.stringify(order));
@@ -200,3 +212,4 @@ export async function onRequestPost(context) {
     return new Response('OK', { status: 200, headers: CORS_HEADERS });
   }
 }
+
