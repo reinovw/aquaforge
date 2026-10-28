@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Register Yoco Webhook — AquaForge</title>
+<style>
+  body { font-family: monospace; background: #080C16; color: #F4F6FA; padding: 30px; max-width: 700px; margin: 0 auto; }
+  h2 { color: #2BD9CB; margin-bottom: 4px; }
+  p  { color: #90A0BD; font-size: 14px; margin-bottom: 24px; }
+  label { display: block; color: #90A0BD; font-size: 13px; margin-bottom: 4px; margin-top: 14px; }
+  input { background: #0D1422; border: 1px solid #212F4A; color: #F4F6FA; padding: 11px; border-radius: 6px; width: 100%; box-sizing: border-box; font-family: monospace; font-size: 13px; }
+  input:focus { border-color: #2BD9CB; outline: none; }
+  .btn { background: #F2A93B; color: #1A1304; border: none; padding: 14px 28px; font-weight: 900; font-size: 15px; border-radius: 8px; cursor: pointer; margin-top: 20px; width: 100%; }
+  .btn:hover { background: #ffbd55; }
+  .btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+  #log { background: #0D1422; border: 1px solid #212F4A; border-radius: 8px; padding: 20px; margin-top: 24px; white-space: pre-wrap; word-break: break-all; min-height: 120px; font-size: 13px; line-height: 1.8; display: none; }
+  .ok   { color: #2BD9CB; }
+  .err  { color: #e53935; }
+  .warn { color: #F2A93B; }
+  .note { background: #0D1422; border: 1px solid #F2A93B; border-radius: 8px; padding: 16px; margin-bottom: 24px; font-size: 13px; color: #F2A93B; line-height: 1.6; }
+  .step { background: #0D1422; border: 1px solid #212F4A; border-radius: 8px; padding: 16px; margin-bottom: 12px; font-size: 13px; color: #90A0BD; }
+  .step strong { color: #F4F6FA; display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h2>🔗 Register AquaForge Webhook with Yoco</h2>
+<p>This page registers your webhook URL directly with Yoco's API so Yoco knows to call your site every time a payment succeeds.</p>
+
+<div class="note">
+  ⚠️ Your Yoco secret key is used directly in the browser here — only use this page on your own private computer, then delete it from GitHub when done.
+</div>
+
+<label>Yoco Secret Key (sk_live_... or sk_test_...)</label>
+<input id="yoco-key" type="password" placeholder="sk_live_xxxxxxxxxxxxxxxx">
+
+<label>Webhook Name</label>
+<input id="webhook-name" value="aquaforge-orders">
+
+<label>Your Webhook URL</label>
+<input id="webhook-url" value="https://www.aquaforge3d.co.za/api/webhooks/yoco">
+
+<button class="btn" onclick="registerWebhook()" id="btn">Register Webhook with Yoco</button>
+
+<div id="log"></div>
+
+<script>
+function log(msg, type) {
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  const line = document.createElement('div');
+  line.className = type || '';
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function registerWebhook() {
+  const key  = document.getElementById('yoco-key').value.trim();
+  const name = document.getElementById('webhook-name').value.trim();
+  const url  = document.getElementById('webhook-url').value.trim();
+  const btn  = document.getElementById('btn');
+
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('log').style.display = 'block';
+
+  if (!key) { log('❌ Please enter your Yoco secret key', 'err'); return; }
+  if (!key.startsWith('sk_')) { log('❌ Key must start with sk_live_ or sk_test_', 'err'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Registering...';
+
+  log('🚀 Registering webhook with Yoco...');
+  log('   Name: ' + name);
+  log('   URL:  ' + url);
+  log('─────────────────────────────────');
+
+  try {
+    const res = await fetch('https://payments.yoco.com/api/webhooks', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify({ name, url }),
+    });
+
+    const data = await res.json();
+    log('📥 Response status: ' + res.status, res.ok ? 'ok' : 'err');
+    log('📥 Response: ' + JSON.stringify(data, null, 2), res.ok ? 'ok' : 'err');
+
+    if (res.ok) {
+      log('─────────────────────────────────');
+      log('✅ Webhook registered successfully!', 'ok');
+      log('   Webhook ID: ' + (data.id || 'see above'), 'ok');
+      log('', '');
+      log('👉 Next steps:', 'warn');
+      log('   1. Do this again with your sk_test_... key if testing', 'warn');
+      log('   2. Delete this page from GitHub when done', 'warn');
+      log('   3. Make a test payment — your sheet should now update', 'warn');
+    } else {
+      log('─────────────────────────────────');
+      log('❌ Registration failed — see response above', 'err');
+      if (data.message) log('   Error: ' + data.message, 'err');
+    }
+
+  } catch (err) {
+    log('❌ Request failed: ' + err.message, 'err');
+    log('   This may be a CORS issue with Yoco\'s API.', 'warn');
+    log('   If so, share the error with your developer to run via terminal.', 'warn');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Register Webhook with Yoco';
+}
+</script>
+
+</body>
+</html>
