@@ -91,6 +91,48 @@ async function appendRow(token, sheetId, row) {
     body: JSON.stringify({ values: [row] }),
   });
   if (!res.ok) throw new Error(`Sheets append failed (${res.status}): ${await res.text()}`);
+  const data = await res.json();
+  // e.g. "Orders!A7:L7" → row 7
+  const match = /![A-Z]+(\d+)/.exec(data.updates?.updatedRange || '');
+  return match ? parseInt(match[1], 10) : null;
+}
+ 
+// If Yoco delivered the same event twice at the same moment, both requests can
+// pass the duplicate check before either has written. After writing, each
+// request looks again: if an EARLIER row already has this event ID, it deletes
+// its own row. The first row always survives, so exactly one entry remains.
+async function removeSelfIfDuplicate(token, sheetId, eventId, myRow) {
+  if (!myRow) return;
+ 
+  const valsRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent('Orders!B:B')}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!valsRes.ok) return;
+  const values = (await valsRes.json()).values || [];
+  const firstRow = values.findIndex((r) => r[0] === eventId) + 1; // 1-based
+  if (!firstRow || firstRow >= myRow) return; // we are the first entry — keep it
+ 
+  // Find the numeric id of the "Orders" tab (needed to delete a row)
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const tab = ((await metaRes.json()).sheets || []).find((s) => s.properties.title === 'Orders');
+  if (!tab) return;
+ 
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [{
+        deleteDimension: {
+          range: { sheetId: tab.properties.sheetId, dimension: 'ROWS', startIndex: myRow - 1, endIndex: myRow },
+        },
+      }],
+    }),
+  });
+  console.log(`Removed duplicate row ${myRow} for ${eventId} (kept row ${firstRow})`);
 }
  
 // ─── Webhook handler ───────────────────────────────────────────────────────
@@ -148,12 +190,16 @@ export async function onRequestPost({ request, env }) {
  
     const token = await getGoogleAccessToken(env.GOOGLE_SERVICE_ACCOUNT_EMAIL, env.GOOGLE_PRIVATE_KEY);
  
+    // Small random pause so two simultaneous deliveries don't check at the exact same instant
+    await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 1500)));
+ 
     if (await alreadyLogged(token, env.GOOGLE_SHEET_ID, eventId)) {
       console.log('Duplicate event, skipping:', eventId);
       return ok();
     }
  
-    await appendRow(token, env.GOOGLE_SHEET_ID, row);
+    const myRow = await appendRow(token, env.GOOGLE_SHEET_ID, row);
+    await removeSelfIfDuplicate(token, env.GOOGLE_SHEET_ID, eventId, myRow);
     console.log('Order logged:', eventId);
   } catch (err) {
     console.error('Webhook error:', err.message);
@@ -162,3 +208,4 @@ export async function onRequestPost({ request, env }) {
   // Always 200 so Yoco doesn't keep retrying
   return ok();
 }
+ 
