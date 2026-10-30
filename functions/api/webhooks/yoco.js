@@ -102,16 +102,16 @@ async function appendRow(token, sheetId, row) {
 // request looks again: if an EARLIER row already has this event ID, it deletes
 // its own row. The first row always survives, so exactly one entry remains.
 async function removeSelfIfDuplicate(token, sheetId, eventId, myRow) {
-  if (!myRow) return;
+  if (!myRow) return false;
  
   const valsRes = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent('Orders!B:B')}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  if (!valsRes.ok) return;
+  if (!valsRes.ok) return false;
   const values = (await valsRes.json()).values || [];
   const firstRow = values.findIndex((r) => r[0] === eventId) + 1; // 1-based
-  if (!firstRow || firstRow >= myRow) return; // we are the first entry — keep it
+  if (!firstRow || firstRow >= myRow) return false; // we are the first entry — keep it
  
   // Find the numeric id of the "Orders" tab (needed to delete a row)
   const metaRes = await fetch(
@@ -119,7 +119,7 @@ async function removeSelfIfDuplicate(token, sheetId, eventId, myRow) {
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const tab = ((await metaRes.json()).sheets || []).find((s) => s.properties.title === 'Orders');
-  if (!tab) return;
+  if (!tab) return false;
  
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
     method: 'POST',
@@ -133,6 +133,86 @@ async function removeSelfIfDuplicate(token, sheetId, eventId, myRow) {
     }),
   });
   console.log(`Removed duplicate row ${myRow} for ${eventId} (kept row ${firstRow})`);
+  return true;
+}
+ 
+// ─── Order confirmation email (via Resend) ─────────────────────────────────
+ 
+const ORDER_FROM   = 'AquaForge <orders@aquaforge3d.co.za>';
+const ORDER_TEAM   = ['reinovw@live.com', 'gideon@playersswim.co.za'];
+ 
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+ 
+function buildEmailHtml(order) {
+  const firstName = esc((order.customerName || '').split(' ')[0] || 'there');
+  const isPickup  = /pickup/i.test(order.shippingMethod || '');
+  const items     = (order.items || '').split(', ').filter(Boolean)
+    .map((i) => `<li style="margin:4px 0;">${esc(i)}</li>`).join('');
+ 
+  const deliveryNote = isPickup
+    ? `<p style="margin:0 0 6px;"><strong>Collection:</strong> LC de Villiers Pool, University of Pretoria, Hatfield</p>
+       <p style="margin:0;color:#5b6b85;">We'll contact you on ${esc(order.customerPhone)} to arrange a collection time.</p>`
+    : `<p style="margin:0 0 6px;"><strong>Courier delivery to:</strong><br>${esc(order.deliveryAddress)}</p>
+       <p style="margin:0;color:#5b6b85;">We'll be in touch with tracking details once your order ships.</p>`;
+ 
+  return `<!doctype html><html><body style="margin:0;background:#eef2f7;font-family:Arial,Helvetica,sans-serif;color:#0d1422;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f7;padding:24px 0;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;">
+      <tr><td style="background:#080C16;padding:24px 28px;">
+        <div style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:1px;">AquaForge</div>
+        <div style="font-size:11px;color:#2BD9CB;letter-spacing:2px;margin-top:4px;">3D PRINTED SWIM GEAR</div>
+      </td></tr>
+      <tr><td style="padding:28px;">
+        <h1 style="font-size:20px;margin:0 0 12px;">Thanks for your order, ${firstName}!</h1>
+        <p style="margin:0 0 20px;line-height:1.6;">Your payment has been received and your order is confirmed. Here are your details:</p>
+ 
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;border-radius:8px;">
+          <tr><td style="padding:16px 18px;">
+            <div style="font-size:12px;color:#5b6b85;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Items</div>
+            <ul style="margin:0 0 14px;padding-left:18px;">${items || '<li>See your Yoco receipt</li>'}</ul>
+            <div style="font-size:12px;color:#5b6b85;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Delivery</div>
+            <div style="margin-bottom:14px;line-height:1.5;">${deliveryNote}</div>
+            <div style="border-top:1px solid #dde3ec;padding-top:12px;font-size:18px;font-weight:900;">
+              Total paid: <span style="color:#0f9f93;">${esc(order.amount)}</span>
+            </div>
+          </td></tr>
+        </table>
+ 
+        <p style="margin:20px 0 6px;font-size:13px;color:#5b6b85;">Payment reference: ${esc(order.id)}</p>
+        <p style="margin:0 0 20px;font-size:13px;color:#5b6b85;">Your AquaForge prop is covered by a 6-month warranty against manufacturing defects. Keep this email as your proof of purchase.</p>
+ 
+        <p style="margin:0;line-height:1.6;">Questions? Just reply to this email.</p>
+        <p style="margin:16px 0 0;">Drag more. Swim stronger.<br><strong>The AquaForge team</strong></p>
+      </td></tr>
+      <tr><td style="background:#f5f7fb;padding:16px 28px;font-size:11px;color:#8090a8;text-align:center;">
+        Players Swim (Pty Ltd) · www.aquaforge3d.co.za
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+}
+ 
+async function sendConfirmationEmail(env, order) {
+  if (!env.RESEND_API_KEY) { console.log('RESEND_API_KEY not set — skipping email'); return; }
+ 
+  const to  = order.customerEmail ? [order.customerEmail] : ORDER_TEAM;
+  const bcc = order.customerEmail ? ORDER_TEAM : [];
+ 
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: ORDER_FROM,
+      to,
+      bcc,
+      reply_to: ORDER_TEAM[0],
+      subject: `AquaForge order confirmed — ${order.amount}`,
+      html: buildEmailHtml(order),
+    }),
+  });
+  if (!res.ok) throw new Error(`Resend failed (${res.status}): ${await res.text()}`);
+  console.log('Confirmation email sent to', to.join(', '));
 }
  
 // ─── Webhook handler ───────────────────────────────────────────────────────
@@ -199,8 +279,25 @@ export async function onRequestPost({ request, env }) {
     }
  
     const myRow = await appendRow(token, env.GOOGLE_SHEET_ID, row);
-    await removeSelfIfDuplicate(token, env.GOOGLE_SHEET_ID, eventId, myRow);
+    const wasDuplicate = await removeSelfIfDuplicate(token, env.GOOGLE_SHEET_ID, eventId, myRow);
+    if (wasDuplicate) return ok(); // the other delivery handles the email
+ 
     console.log('Order logged:', eventId);
+ 
+    try {
+      await sendConfirmationEmail(env, {
+        id: payload.id || eventId,
+        amount,
+        customerName:    meta.customerName,
+        customerEmail:   meta.customerEmail,
+        customerPhone:   meta.customerPhone,
+        items:           meta.orderItems,
+        shippingMethod:  meta.shippingMethod,
+        deliveryAddress: meta.deliveryAddress,
+      });
+    } catch (e) {
+      console.error('Email error:', e.message);
+    }
   } catch (err) {
     console.error('Webhook error:', err.message);
   }
@@ -208,4 +305,3 @@ export async function onRequestPost({ request, env }) {
   // Always 200 so Yoco doesn't keep retrying
   return ok();
 }
- 
